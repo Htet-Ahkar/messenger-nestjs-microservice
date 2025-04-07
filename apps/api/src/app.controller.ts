@@ -3,7 +3,10 @@ import { ClientProxy } from '@nestjs/microservices';
 
 @Controller()
 export class AppController {
-  constructor(@Inject('AUTH_SERVICE') private authService: ClientProxy) {}
+  constructor(
+    @Inject('AUTH_SERVICE') private authService: ClientProxy,
+    @Inject('PRESENCE_SERVICE') private persenceService: ClientProxy,
+  ) {}
 
   @Get('auth')
   async getUses() {
@@ -13,5 +16,10 @@ export class AppController {
   @Post('auth')
   async postUser() {
     return this.authService.send({ cmd: 'post-user' }, {});
+  }
+
+  @Get('presence')
+  async persenceUses() {
+    return this.persenceService.send({ cmd: 'get-presence' }, {});
   }
 }
