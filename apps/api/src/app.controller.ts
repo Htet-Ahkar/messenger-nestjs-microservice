@@ -1,5 +1,16 @@
-import { AuthGuard } from '@/shared';
-import { Body, Controller, Get, Inject, Post, UseGuards } from '@nestjs/common';
+import { AuthGuard, UserInterceptor, UserRequest } from '@/shared';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Inject,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 
 @Controller()
@@ -8,6 +19,46 @@ export class AppController {
     @Inject('AUTH_SERVICE') private authService: ClientProxy,
     @Inject('PRESENCE_SERVICE') private persenceService: ClientProxy,
   ) {}
+
+  // Note: This would be done already from the main Facebook App thus simple end point provided to simplify this process.
+  @UseGuards(AuthGuard)
+  @UseInterceptors(UserInterceptor) //* Can be replaced by decorator?
+  @Post('add-friend/:friendId')
+  async addFriend(
+    @Req() req: UserRequest,
+    @Param('friendId') friendId: number,
+  ) {
+    if (!req?.user) {
+      throw new BadRequestException();
+    }
+    return this.authService.send(
+      {
+        cmd: 'add-friend',
+      },
+      {
+        userId: req.user.id,
+        friendId,
+      },
+    );
+  }
+
+  @UseGuards(AuthGuard)
+  @UseInterceptors(UserInterceptor)
+  @Get('get-friends')
+  async getFriends(@Req() req: UserRequest) {
+    if (!req?.user) {
+      throw new BadRequestException();
+    }
+
+    return this.authService.send(
+      {
+        cmd: 'get-friends',
+      },
+      {
+        userId: req.user.id,
+      },
+    );
+  }
 
   @Get('auth')
   async getUses() {

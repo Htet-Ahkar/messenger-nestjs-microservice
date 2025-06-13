@@ -1,5 +1,6 @@
 import * as bcrypt from 'bcrypt';
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
@@ -8,7 +9,13 @@ import {
 
 import { ExistingUserDTO, NewUserDTO } from './dto';
 import { JwtService } from '@nestjs/jwt';
-import { UserEntity, UserRepositoryInterface } from '@/shared';
+import {
+  FriendRequestEntity,
+  FriendRequestsRepositoryInterface,
+  UserEntity,
+  UserJwt,
+  UserRepositoryInterface,
+} from '@/shared';
 import { AuthServiceInterface } from './interfaces';
 
 @Injectable()
@@ -16,19 +23,31 @@ export class AuthService implements AuthServiceInterface {
   constructor(
     @Inject('UserRepositoryInterface')
     private readonly usersRepository: UserRepositoryInterface,
+    @Inject('FriendRequestsRepositoryInterface')
+    private readonly friendRequestsRepository: FriendRequestsRepositoryInterface,
     private readonly jwtService: JwtService,
   ) {}
+
+  // if (!creator || !receiver) throw new BadRequestException();
 
   async getUsers() {
     return this.usersRepository.findAll();
   }
 
-  async getUserById(id: number): Promise<UserEntity | null> {
-    return await this.usersRepository.findOneById(id);
+  async getUserById(id: number): Promise<UserEntity> {
+    const user = await this.usersRepository.findOneById(id);
+
+    if (!user) throw new BadRequestException();
+
+    return user;
   }
 
-  async findById(id: number): Promise<UserEntity | null> {
-    return await this.usersRepository.findOneById(id);
+  async findById(id: number): Promise<UserEntity> {
+    const user = await this.usersRepository.findOneById(id);
+
+    if (!user) throw new BadRequestException();
+
+    return user;
   }
 
   async findByEmail(email: string): Promise<UserEntity | null> {
@@ -116,5 +135,58 @@ export class AuthService implements AuthServiceInterface {
     } catch (error) {
       throw new UnauthorizedException();
     }
+  }
+
+  async getUserFromHeader(jwt: string): Promise<UserJwt | undefined> {
+    if (!jwt) return;
+
+    try {
+      return this.jwtService.decode(jwt) as UserJwt;
+    } catch (error) {
+      throw new BadRequestException();
+    }
+  }
+
+  async addFriend(
+    userId: number,
+    friendId: number,
+  ): Promise<FriendRequestEntity> {
+    const creator = await this.findById(userId);
+    const receiver = await this.findById(friendId);
+
+    return await this.friendRequestsRepository.save({ creator, receiver });
+  }
+
+  async getFriends(userId: number): Promise<FriendRequestEntity[]> {
+    const creator = await this.findById(userId);
+
+    return await this.friendRequestsRepository.findWithRelations({
+      where: [{ creator }, { receiver: creator }],
+      relations: ['creator', 'receiver'],
+    });
+  }
+
+  async getFriendsList(userId: number) {
+    const friendRequests = await this.getFriends(userId);
+
+    if (!friendRequests) return [];
+
+    const friends = friendRequests.map((friendRequest) => {
+      const isUserCreator = userId === friendRequest.creator.id;
+      const friendDetails = isUserCreator
+        ? friendRequest.receiver
+        : friendRequest.creator;
+
+      const { id, firstName, lastName, email } = friendDetails;
+
+      return {
+        id,
+        email,
+        firstName,
+        lastName,
+      };
+    });
+
+    return friends;
   }
 }
