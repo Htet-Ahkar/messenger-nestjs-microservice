@@ -5,4 +5,10 @@ export class PresenceService {
   getHello(): string {
     return 'Hello World!';
   }
+
+  getFoo() {
+    console.log('No Cache!!!!');
+
+    return { foo: 'bar' };
+  }
 }

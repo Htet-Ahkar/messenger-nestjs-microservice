@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PresenceController } from './presence.controller';
 import { PresenceService } from './presence.service';
-import { SharedModule } from '@/shared';
+import { RedisCacheService, RedisModule, SharedModule } from '@/shared';
 import { ConfigModule } from '@nestjs/config';
 
 @Module({
@@ -12,6 +12,7 @@ import { ConfigModule } from '@nestjs/config';
     }),
 
     SharedModule,
+    RedisModule,
   ],
   controllers: [PresenceController],
   providers: [PresenceService],
